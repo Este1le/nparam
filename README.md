@@ -132,18 +132,8 @@ Suppose `bpe_symbols=b`, `num_layers=sn:tn`, `num_embed=se:te`, `rnn_num_hidden=
 	
 	
 	
-<<<<<<< HEAD
 ### 4. Parameters wrt Hyper-parameters
 
 From previous section, we get the equation for calculating the number of parameters based on hyper-parameter settings.
 
 Suppose `bpe_symbols=b`, `num_layers=sn:tn`, `num_embed=se:te`, `rnn_num_hidden=h`.
-
-
-
-
-	
-=======
-	**encoder\_lx**: `encoder_rnn_lx_...`, where `x=0,...,n-2`. Notice when `n=1`, these parameters do not exist.
-	
->>>>>>> b01c89b640d244f6ab98c65f6dab2a83ac5e85b4
