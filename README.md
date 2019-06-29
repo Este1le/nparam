@@ -1,5 +1,5 @@
 # nparam
--
+--
 For neural machine translation models built through [Amazon Sockeye](https://github.com/awslabs/sockeye), this documentation and the scripts show a way to calculate the number of model parameters by hand given hyperparameter settings. 
 
 We consider RNN and Transformer models seperately. 
@@ -9,9 +9,9 @@ We consider RNN and Transformer models seperately.
 
 * `bpe_symbols`: 
 * `rnn_cell_type`: RNN cell type for encoder and decoder, including `gru` and `lstm`.
+* `num_layers`: Number of layers for encoder and decoder.
 * `num_embed`: Embedding size for source and target tokens. 
 * `rnn_num_hidden`: Number of RNN hidden units for encoder and decoder.
-* `num_layers`: Number of layers for encoder & decoder.
 
 ### 2. Parameters
 
@@ -88,7 +88,9 @@ For the model above, the total number of parameters is 79638799.
 
 ### 3. Influence of Hyper-parameters on Parameters
 
-For `num_layers=n`, `num_embed=e`, `rnn_num_hidden=h`, and `s1`, `s2` are the length of the first and second dimension of the parameter matrix.
+Now let's see how the changes on each hyper-parameter reflect on the shape and number of parameter matrices.
+
+Suppose `bpe_symbols=b`, `num_layers=sn:tn`, `num_embed=se:te`, `rnn_num_hidden=h`, where `s` stands for encoder, `t` stands for decoder. And `s1`, `s2` are the length of the first and second dimension of the parameter matrix.
 
 * `bpe_symbols`
 
@@ -99,6 +101,14 @@ For `num_layers=n`, `num_embed=e`, `rnn_num_hidden=h`, and `s1`, `s2` are the le
 	**decoder\_lx**, **encoder\_lx**: For lstm, `s1=4*h`; while for gru, `s1=3*h`.
 	
 	**birnn**: For lstm, `s1=2*h`; while for gru, `s1=3*h/2`. 
+
+* `num_layers`
+	
+	**enc2decinit**: Lstm has `decoder_rnn_enc2decinit_x_bias/weight`, where `x=0,...,2*n-1`; while for gru, `x=0,...,n-1`.
+	
+	**decoder\_lx**: `decoder_rnn_lx_...`, where `x=0,...,n-1`.
+	
+	**encoder\_lx**: `encoder_rnn_lx_...`, where `x=0,...,n-2`. Notice when `n=1`, these parameters do not exist.
 
 * `num_embed`
 	
@@ -120,12 +130,15 @@ For `num_layers=n`, `num_embed=e`, `rnn_num_hidden=h`, and `s1`, `s2` are the le
 	
 	**io**: For `target_output_weight` parameters, `s2=h`.
 	
+	
+	
+### 4. Parameters wrt Hyper-parameters
 
-* `num_layers`
-	
-	**enc2decinit**: Lstm has `decoder_rnn_enc2decinit_x_bias/weight`, where `x=0,...,2*n-1`; while for gru, `x=0,...,n-1`.
-	
-	**decoder\_lx**: `decoder_rnn_lx_...`, where `x=0,...,n-1`.
-	
-	**encoder\_lx**: `encoder_rnn_lx_...`, where `x=0,...,n-2`. Notice when `n=1`, these parameters do not exist.
+From previous section, we get the equation for calculating the number of parameters based on hyper-parameter settings.
+
+Suppose `bpe_symbols=b`, `num_layers=sn:tn`, `num_embed=se:te`, `rnn_num_hidden=h`.
+
+
+
+
 	
