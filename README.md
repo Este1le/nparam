@@ -7,7 +7,7 @@ We will consider RNN and Transformer models seperately.
 ## RNN
 ### 1. Hyper-parameters
 
-* `bpe_symbols`: 
+* `bpe_symbols`:  
 * `rnn_cell_type`: RNN cell type for encoder and decoder, including `gru` and `lstm`.
 * `num_layers`: Number of layers for encoder and decoder.
 * `num_embed`: Embedding size for source and target tokens. 
@@ -15,7 +15,7 @@ We will consider RNN and Transformer models seperately.
 
 ### 2. Parameters
 
-The parameters (`parameter name: shape`) for a RNN model trained with `bpe_symbols=50000`, `rnn_cell_type=lstm`, `num_embed=512:512`, `rnn_num_hidden=512`, `num_layers=2` are shown below.
+The parameters (`parameter name: shape`) for a RNN model trained with `bpe_symbols=50000:50000`, `rnn_cell_type=lstm`, `num_embed=512:512`, `rnn_num_hidden=512`, `num_layers=2:2` are shown below.
 
 **enc2decinit**
 
@@ -90,7 +90,7 @@ For the model above, the total number of parameters is 79638799.
 
 Now let's see how the changes on each hyper-parameter reflect on the shape and number of parameter matrices.
 
-Suppose `bpe_symbols=sb:tb`, `num_layers=sn:tn`, `num_embed=se:te`, `rnn_num_hidden=h`, where `s` stands for encoder, `t` stands for decoder. And `s1`, `s2` are the length of the first and second dimension of the parameter matrix.
+Suppose `bpe_symbols=sb:tb`, `num_layers=sn:tn`, `num_embed=se:te`, `rnn_num_hidden=h`, where `s` stands for source/encoder, `t` stands for target/decoder. And `s1`, `s2` are the length of the first and second dimension of the parameter matrix.
 
 * `bpe_symbols`
 
@@ -243,7 +243,13 @@ target_output_bias: (ob,),
 target_output_weight: (ob, h)
 ```
 
-We now can get the total number of all the parameters:
+The total number of `io` parameters can be calculated as follows:
+
+```
+nparam_io = ib*se+ob*(1+te+h)
+```
+
+We now can get the total number of all the parameters for an RNN model:
 
 ```
 nparam = nparam_enc2decinit + nparam_hidden + nparam_decoder_lx + nparam_birnn + nparam_encoder_lx + nparam_io
@@ -251,5 +257,240 @@ nparam = nparam_enc2decinit + nparam_hidden + nparam_decoder_lx + nparam_birnn +
 if rnn_cell_type == lstm:
 	nparam = h*(-4*h+8*se+(8*sn+10*tn)(1+h)+1)+(ib*se+ob*(1+te+h))
 elif rnn_cell_type == gru:
-	nparam = h*(-2.5h+6*se+(6*sn+7*tn)(1+h)+1)+(ib*se+ob*(1+te+h))
+	nparam = h*(-2.5*h+6*se+(6*sn+7*tn)(1+h)+1)+(ib*se+ob*(1+te+h))
+```
+
+## Transformer
+### 1. Hyper-parameters
+* `bpe_symbols`: 
+* `num_layers`: Number of layers for encoder and decoder.
+* `num_embed`: Embedding size for source and target tokens. 
+* `transformer_feed_forward_num_hidden`: Number of hidden units in transformers feed forward layers.
+
+### 2. Parameters
+The parameters (`parameter name: shape`) for a Transformer model trained with `bpe_symbols=30000:30000`, `num_layers=1:1`, `num_embed=512`,`transformer_feed_forward_num_hidden=300` are shown below.
+
+**decoder\_att**
+
+```
+decoder_transformer_0_att_enc_h2o_weight: (512, 512), 
+decoder_transformer_0_att_enc_k2h_weight: (512, 512), 
+decoder_transformer_0_att_enc_pre_norm_beta: (512,), 
+decoder_transformer_0_att_enc_pre_norm_gamma: (512,), 
+decoder_transformer_0_att_enc_q2h_weight: (512, 512), 
+decoder_transformer_0_att_enc_v2h_weight: (512, 512),
+decoder_transformer_0_att_self_h2o_weight: (512, 512), 
+decoder_transformer_0_att_self_i2h_weight: (1536, 512), 
+decoder_transformer_0_att_self_pre_norm_beta: (512,), 
+decoder_transformer_0_att_self_pre_norm_gamma: (512,)
+```
+
+**decoder\_ff**
+
+```
+decoder_transformer_0_ff_h2o_bias: (512,), 
+decoder_transformer_0_ff_h2o_weight: (512, 300), 
+decoder_transformer_0_ff_i2h_bias: (300,), 
+decoder_transformer_0_ff_i2h_weight: (300, 512), 
+decoder_transformer_0_ff_pre_norm_beta: (512,), 
+decoder_transformer_0_ff_pre_norm_gamma: (512,)
+```
+
+**decoder\_final**
+
+```
+decoder_transformer_final_process_norm_beta: (512,), 
+decoder_transformer_final_process_norm_gamma: (512,)
+```
+**encoder\_att**
+
+```
+encoder_transformer_0_att_self_h2o_weight: (512, 512), 
+encoder_transformer_0_att_self_i2h_weight: (1536, 512), 
+encoder_transformer_0_att_self_pre_norm_beta: (512,), 
+encoder_transformer_0_att_self_pre_norm_gamma: (512,)
+```
+
+**encoder\_ff**
+
+```
+encoder_transformer_0_ff_h2o_bias: (512,), 
+encoder_transformer_0_ff_h2o_weight: (512, 300), 
+encoder_transformer_0_ff_i2h_bias: (300,), 
+encoder_transformer_0_ff_i2h_weight: (300, 512), 
+encoder_transformer_0_ff_pre_norm_beta: (512,), 
+encoder_transformer_0_ff_pre_norm_gamma: (512,)
+```
+
+**encoder\_final**
+
+```
+encoder_transformer_final_process_norm_beta: (512,),
+encoder_transformer_final_process_norm_gamma: (512,)
+```
+
+**io**
+
+```
+source_embed_weight: (29624, 512), 
+target_embed_weight: (28059, 512), 
+target_output_bias: (28059,), 
+target_output_weight: (28059, 512)
+```
+
+For the model above, the total number of parameters is 49181083.
+
+### 3. Influence of Hyper-parameters on Parameters
+
+Now let's see how the changes on each hyper-parameter reflect on the shape and number of parameter matrices.
+
+Suppose `bpe_symbols=sb:tb`, `num_layers=sn:tn`, `num_embed=e`, `transformer_feed_forward_num_hidden=f`. And `s1`, `s2` are the length of the first and second dimension of the parameter matrix.
+
+* `bpe_symbols`:
+	
+	?
+	
+* `num_layers`:
+
+	**decoder\_att**, **decoder\_ff**, **encoder\_att**, **encoder\_ff**: `..._transformer_x_...`, where `x=0,...,n-1`.
+	
+* `num_embed`:
+
+	**all**. Please see section 4 below for more details.
+	
+* `transformer_feed_forward_num_hidden`:
+
+	**decoder\_ff**, **encoder\_ff**: For `..._i2h_...` matrices, `s1=f`; for `..._h2o_weight` matrices, `s2=f`.
+	
+
+### 4. Parameters w.r.t. Hyper-parameters
+
+From previous section, we can get the equation for calculating the number of parameters based on hyper-parameter settings.
+
+Suppose `bpe_symbols=sb:tb`, `num_layers=sn:tn`, `num_embed=e`, `transformer_feed_forward_num_hidden=f`.
+
+**decoder\_att**
+
+```
+decoder_transformer_x_att_enc_h2o_weight: (e, e), 
+decoder_transformer_x_att_enc_k2h_weight: (e, e), 
+decoder_transformer_x_att_enc_pre_norm_beta: (e,), 
+decoder_transformer_x_att_enc_pre_norm_gamma: (e,), 
+decoder_transformer_x_att_enc_q2h_weight: (e, e), 
+decoder_transformer_x_att_enc_v2h_weight: (e, e),
+decoder_transformer_x_att_self_h2o_weight: (e, e), 
+decoder_transformer_x_att_self_i2h_weight: (3*e, e), 
+decoder_transformer_x_att_self_pre_norm_beta: (e,), 
+decoder_transformer_x_att_self_pre_norm_gamma: (e,)
+
+where x=0,...,n-1.
+```
+The total number of `decoder_att` parameters can be calculated as follows:
+
+```
+nparam_decoder_att = n*4e*(2e+1)
+```
+
+**decoder\_ff**
+
+```
+decoder_transformer_x_ff_h2o_bias: (e,), 
+decoder_transformer_x_ff_h2o_weight: (e, f), 
+decoder_transformer_x_ff_i2h_bias: (f,), 
+decoder_transformer_x_ff_i2h_weight: (f, e), 
+decoder_transformer_x_ff_pre_norm_beta: (e,), 
+decoder_transformer_x_ff_pre_norm_gamma: (e,)
+
+where x=0,...,n-1.
+```
+
+The total number of `decoder_ff` parameters can be calculated as follows:
+
+```
+nparam_decoder_ff = n*(2ef+3e+f)
+```
+
+**decoder\_final**
+
+```
+decoder_transformer_final_process_norm_beta: (e,), 
+decoder_transformer_final_process_norm_gamma: (e,)
+```
+
+The total number of `decoder_final` parameters can be calculated as follows:
+
+```
+nparam_decoder_final = 2e
+```
+
+**encoder\_att**
+
+```
+encoder_transformer_x_att_self_h2o_weight: (e, e), 
+encoder_transformer_x_att_self_i2h_weight: (3*e, e), 
+encoder_transformer_x_att_self_pre_norm_beta: (e,), 
+encoder_transformer_x_att_self_pre_norm_gamma: (e,)
+
+where x=0,...,n-1.
+```
+
+The total number of `encoder_att` parameters can be calculated as follows:
+
+```
+nparam_encoder_att = n*2e*(2e+1)
+```
+
+**encoder\_ff**
+
+```
+encoder_transformer_x_ff_h2o_bias: (e,), 
+encoder_transformer_x_ff_h2o_weight: (e, f), 
+encoder_transformer_x_ff_i2h_bias: (f,), 
+encoder_transformer_x_ff_i2h_weight: (f, e), 
+encoder_transformer_x_ff_pre_norm_beta: (e,), 
+encoder_transformer_x_ff_pre_norm_gamma: (e,)
+
+where x=0,...,n-1.
+```
+
+The total number of `encoder_ff` parameters can be calculated as follows:
+
+```
+nparam_encoder_ff = n*(2ef+3e+f)
+```
+
+**encoder\_final**
+
+```
+encoder_transformer_final_process_norm_beta: (e,),
+encoder_transformer_final_process_norm_gamma: (e,)
+```
+
+The total number of `encoder_final` parameters can be calculated as follows:
+
+```
+nparam_encoder_final = 2e
+```
+
+**io**
+
+```
+source_embed_weight: (ib, e), 
+target_embed_weight: (ob, e), 
+target_output_bias: (ob,), 
+target_output_weight: (ob, e)
+```
+
+The total number of `io` parameters can be calculated as follows:
+
+```
+nparam_io = ib*e+ob*(2e+1)
+```
+
+We now can get the total number of all the parameters for a Transformer model:
+
+```
+nparam = nparam_decoder_att + nparam_decoder_ff + nparam_decoder_final + nparam_encoder_att + nparam_encoder_ff + nparam_encoder_final + nparam_io
+
+nparam = n*(12e*e+12e+4ef+2f)+4e+(ib*e+ob*(2e+1))
 ```
