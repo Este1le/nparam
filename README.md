@@ -2,7 +2,7 @@
 
 For neural machine translation models built through [Amazon Sockeye](https://github.com/awslabs/sockeye), this documentation and the scripts show a way to calculate the number of model parameters by hand given hyperparameter settings. 
 
-We will consider RNN and Transformer models seperately. 
+We will consider [RNN](#rnn) and [Transformer](#transformer) models seperately. 
 
 ## RNN
 ### 1. Hyper-parameters
