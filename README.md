@@ -148,7 +148,7 @@ Suppose `bpe_symbols=sb:tb`, `num_layers=sn:tn`, `num_embed=se:te`, `rnn_num_hid
 decoder_rnn_enc2decinit_x_bias: (h,), 
 decoder_rnn_enc2decinit_x_weight: (h, h)
 
-where x=0,...,2*tn-1 for lstm; x=0,...,n-1 for gru.
+where x=0,...,2*tn-1 for lstm; x=0,...,tn-1 for gru.
 ```
 The total number of `enc2decinit` parameters can be calculated as follows:
 
@@ -352,7 +352,8 @@ Suppose `bpe_symbols=sb:tb`, `num_layers=sn:tn`, `num_embed=e`, `transformer_fee
 	
 * `num_layers`:
 
-	**decoder\_att**, **decoder\_ff**, **encoder\_att**, **encoder\_ff**: `..._transformer_x_...`, where `x=0,...,n-1`.
+	**decoder\_att**, **decoder\_ff**: `..._transformer_x_...`, where `x=0,...,tn-1`.
+	, **encoder\_att**, **encoder\_ff**: `..._transformer_x_...`, where `x=0,...,sn-1`.
 	
 * `num_embed`:
 
@@ -383,12 +384,12 @@ decoder_transformer_x_att_self_i2h_weight: (3*e, e),
 decoder_transformer_x_att_self_pre_norm_beta: (e,), 
 decoder_transformer_x_att_self_pre_norm_gamma: (e,)
 
-where x=0,...,n-1.
+where x=0,...,tn-1.
 ```
 The total number of `decoder_att` parameters can be calculated as follows:
 
 ```
-nparam_decoder_att = n*4e*(2e+1)
+nparam_decoder_att = tn*4e*(2e+1)
 ```
 
 **decoder\_ff**
@@ -401,13 +402,13 @@ decoder_transformer_x_ff_i2h_weight: (f, e),
 decoder_transformer_x_ff_pre_norm_beta: (e,), 
 decoder_transformer_x_ff_pre_norm_gamma: (e,)
 
-where x=0,...,n-1.
+where x=0,...,tn-1.
 ```
 
 The total number of `decoder_ff` parameters can be calculated as follows:
 
 ```
-nparam_decoder_ff = n*(2ef+3e+f)
+nparam_decoder_ff = tn*(2ef+3e+f)
 ```
 
 **decoder\_final**
@@ -431,13 +432,13 @@ encoder_transformer_x_att_self_i2h_weight: (3*e, e),
 encoder_transformer_x_att_self_pre_norm_beta: (e,), 
 encoder_transformer_x_att_self_pre_norm_gamma: (e,)
 
-where x=0,...,n-1.
+where x=0,...,sn-1.
 ```
 
 The total number of `encoder_att` parameters can be calculated as follows:
 
 ```
-nparam_encoder_att = n*2e*(2e+1)
+nparam_encoder_att = sn*2e*(2e+1)
 ```
 
 **encoder\_ff**
@@ -450,13 +451,13 @@ encoder_transformer_x_ff_i2h_weight: (f, e),
 encoder_transformer_x_ff_pre_norm_beta: (e,), 
 encoder_transformer_x_ff_pre_norm_gamma: (e,)
 
-where x=0,...,n-1.
+where x=0,...,sn-1.
 ```
 
 The total number of `encoder_ff` parameters can be calculated as follows:
 
 ```
-nparam_encoder_ff = n*(2ef+3e+f)
+nparam_encoder_ff = sn*(2ef+3e+f)
 ```
 
 **encoder\_final**
@@ -492,5 +493,5 @@ We now can get the total number of all the parameters for a Transformer model:
 ```
 nparam = nparam_decoder_att + nparam_decoder_ff + nparam_decoder_final + nparam_encoder_att + nparam_encoder_ff + nparam_encoder_final + nparam_io
 
-nparam = n*(12e*e+12e+4ef+2f)+4e+(ib*e+ob*(2e+1))
+nparam = tn*(8e*e+7e+2ef+f)+sn*(4e*e+5e+2ef+f)+4e+(ib*e+ob*(2e+1))
 ```
