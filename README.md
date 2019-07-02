@@ -1,13 +1,24 @@
 # nparam
 
-For neural machine translation models built through [Amazon Sockeye](https://github.com/awslabs/sockeye), this documentation and the scripts show a way to calculate the number of model parameters by hand given hyperparameter settings. 
+For neural machine translation models built through [Amazon Sockeye](https://github.com/awslabs/sockeye), this documentation and the scripts show a way to calculate the number of model parameters by hand given hyper-parameter settings. 
 
 We will consider [RNN](#rnn) and [Transformer](#transformer) models seperately. 
+
+## Usage
+```
+cd nparam
+sh get_nparam.sh -p model.hpm
+```
+`rnn.hpm` is an example for the RNN hyper-parameter file, and `transformer.hpm` is an example for the Transformer hyperparameter file.
+
+With the hyper-parameter settings specified, this script will print the name of parameters with the shapes, and the total number of model parameters.
+
+Notice that `--bpe-symbols-src` and `--bpe-symbols-trg` in `get_nparam.sh` may not equal to the real vocab size used in the training. If you want the real total number of model parameters, you can specify the `--exact` flag, and path to the BPE'ed training data (e.g. `./data-bpe/train.bpe-30000.de`, `./data-bpe/train.bpe-30000.en`) should also be specified (`--train-bpe-src`, `--train-bpe-trg`). Otherwise, without the `--exact` flag, an approximation of the number of parameters will be calculated based on `--bpe-symbols-src` and `--bpe-symbols-trg`.
 
 ## RNN
 ### 1. Hyper-parameters
 
-* `bpe_symbols`:  
+* `bpe_symbols`: Number of BPE operations for source and target side of training data.
 * `rnn_cell_type`: RNN cell type for encoder and decoder, including `gru` and `lstm`.
 * `num_layers`: Number of layers for encoder and decoder.
 * `num_embed`: Embedding size for source and target tokens. 
@@ -94,7 +105,7 @@ Suppose `bpe_symbols=sb:tb`, `num_layers=sn:tn`, `num_embed=se:te`, `rnn_num_hid
 
 * `bpe_symbols`
 
-	?
+	**io**: For `source_embed_weight`, `s1=sb`. For `target_...`, `s1=tb`.
 
 * `rnn_cell_type`
 
@@ -237,16 +248,16 @@ elif rnn_cell_type == gru:
 **io**
 
 ```
-source_embed_weight: (ib, se), 
-target_embed_weight: (ob, te), 
-target_output_bias: (ob,), 
-target_output_weight: (ob, h)
+source_embed_weight: (sb, se), 
+target_embed_weight: (tb, te), 
+target_output_bias: (tb,), 
+target_output_weight: (tb, h)
 ```
 
 The total number of `io` parameters can be calculated as follows:
 
 ```
-nparam_io = ib*se+ob*(1+te+h)
+nparam_io = sb*se+tb*(1+te+h)
 ```
 
 We now can get the total number of all the parameters for an RNN model:
@@ -255,14 +266,14 @@ We now can get the total number of all the parameters for an RNN model:
 nparam = nparam_enc2decinit + nparam_hidden + nparam_decoder_lx + nparam_birnn + nparam_encoder_lx + nparam_io
 
 if rnn_cell_type == lstm:
-	nparam = h*(-4*h+8*se+(8*sn+10*tn)(1+h)+1)+(ib*se+ob*(1+te+h))
+	nparam = h*(-4*h+8*se+(8*sn+10*tn)(1+h)+1)+(sb*se+tb*(1+te+h))
 elif rnn_cell_type == gru:
-	nparam = h*(-2.5*h+6*se+(6*sn+7*tn)(1+h)+1)+(ib*se+ob*(1+te+h))
+	nparam = h*(-2.5*h+6*se+(6*sn+7*tn)(1+h)+1)+(sb*se+tb*(1+te+h))
 ```
 
 ## Transformer
 ### 1. Hyper-parameters
-* `bpe_symbols`: 
+* `bpe_symbols`: Number of BPE operations for source and target side of training data.
 * `num_layers`: Number of layers for encoder and decoder.
 * `num_embed`: Embedding size for source and target tokens. 
 * `transformer_feed_forward_num_hidden`: Number of hidden units in transformers feed forward layers.
@@ -348,7 +359,7 @@ Suppose `bpe_symbols=sb:tb`, `num_layers=sn:tn`, `num_embed=e`, `transformer_fee
 
 * `bpe_symbols`:
 	
-	?
+	**io**: For `source_embed_weight`, `s1=sb`. For `target_...`, `s1=tb`.
 	
 * `num_layers`:
 
@@ -476,16 +487,16 @@ nparam_encoder_final = 2e
 **io**
 
 ```
-source_embed_weight: (ib, e), 
-target_embed_weight: (ob, e), 
-target_output_bias: (ob,), 
-target_output_weight: (ob, e)
+source_embed_weight: (sb, e), 
+target_embed_weight: (tb, e), 
+target_output_bias: (tb,), 
+target_output_weight: (tb, e)
 ```
 
 The total number of `io` parameters can be calculated as follows:
 
 ```
-nparam_io = ib*e+ob*(2e+1)
+nparam_io = sb*e+tb*(2e+1)
 ```
 
 We now can get the total number of all the parameters for a Transformer model:
@@ -493,5 +504,5 @@ We now can get the total number of all the parameters for a Transformer model:
 ```
 nparam = nparam_decoder_att + nparam_decoder_ff + nparam_decoder_final + nparam_encoder_att + nparam_encoder_ff + nparam_encoder_final + nparam_io
 
-nparam = tn*(8e*e+7e+2ef+f)+sn*(4e*e+5e+2ef+f)+4e+(ib*e+ob*(2e+1))
+nparam = tn*(8e*e+7e+2ef+f)+sn*(4e*e+5e+2ef+f)+4e+(sb*e+tb*(2e+1))
 ```

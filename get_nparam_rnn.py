@@ -3,6 +3,7 @@
 Calculate the number of model parameters for RNN models.
 """
 import argparse
+import os
 
 def multiple_values(num_values,
                     greater_or_equal,
@@ -49,12 +50,33 @@ def int_greater_or_equal(threshold):
 
     return check_greater_equal
 
+def regular_file():
+    """
+    source: https://github.com/awslabs/sockeye/blob/master/sockeye/arguments.py
+    Returns a method that can be used in argument parsing to check the argument is a regular file or a symbolic link,
+    but not, e.g., a process substitution.
+    :return: A method that can be used as a type in argparse.
+    """
+
+    def check_regular_file(value_to_check):
+        value_to_check = str(value_to_check)
+        if not os.path.isfile(value_to_check):
+            raise argparse.ArgumentTypeError("must exist and be a regular file.")
+        return value_to_check
+
+    return check_regular_file
+
+
 def get_args():
     parser = argparse.ArgumentParser(description='The hyperparameter settings.')
-    parser.add_argument('--bpe-symbols-src', type=int_greater_or_equal(1), required=True,
+    parser.add_argument('--bpe-symbols-src', type=int_greater_or_equal(1), required=False,
                         help='The number of bpe operations for source side.')
-    parser.add_argument('--bpe-symbols-trg', type=int_greater_or_equal(1), required=True,
+    parser.add_argument('--bpe-symbols-trg', type=int_greater_or_equal(1), required=False,
                         help='The number of bpe operations for target side.')
+    parser.add_argument('--train-bpe-src', type=regular_file(), required=False,
+                        help='Source side of parallel training data.')
+    parser.add_argument('--train-bpe-trg', type=regular_file(), required=False,
+                        help='Target side of parallel training data.')
     parser.add_argument('--rnn-cell-type', choices=['lstm', 'gru'], required=True,
                         help='RNN cell type for encoder and decoder.')
     parser.add_argument('--num-layers', type=multiple_values(num_values=2, greater_or_equal=1), required=True,
@@ -65,12 +87,39 @@ def get_args():
                              'Use "x:x" to specify separate values for src&tgt.')
     parser.add_argument('--rnn-num-hidden', type=int_greater_or_equal(1), required=True,
                         help='Number of RNN hidden units for encoder and decoder.')
+    parser.add_argument('--exact', action='store_true', 
+                        help='If specified as True, return the exact number of parameters with training data given.'
+                             'Otherwise, return an approximate value with bpe-symbols given.')
 
     args = parser.parse_args()
 
+    if args.exact:
+        if ('train_bpe_src' not in vars(args)):
+            parser.error('--train-bpe-src is required for exact calculation.')
+        if ('train_bpe_trg' not in vars(args)):
+            parser.error('--train-bpe-trg is required for exact calculation.')
+    else:
+        if ('bpe_symbols_src' not in vars(args)):
+            parser.error('--bpe-symbols-src is required for approximate calculation.')
+        if ('bpe_symbols_trg' not in vars(args)):
+            parser.error('--bpe-symbols-trg is required for approximate calculation.')
+
     return args
 
-def get_model_params(cell, ib, ob, sn, tn, se, te, h):
+def get_num_vocab(fname):
+    '''
+    Get the size of vocabulary.
+    :param fname: BPE'ed training data.
+    '''
+    tokens = []
+    with open(fname) as f:
+        for line in f:
+            for t in line.rstrip().split():
+                if len(t) > 0:
+                    tokens.append(t)
+    return len(set(tokens))+4
+
+def get_model_params(cell, sb, tb, sn, tn, se, te, h):
     param_dict = {} # {name of parameters: shape of param matrix}
 
     # enc2decinit parameters
@@ -128,15 +177,15 @@ def get_model_params(cell, ib, ob, sn, tn, se, te, h):
             param_dict['encoder_rnn_l{0}_i2h_weight'.format(i)] = (y, h)
 
     # io
-    param_dict['source_embed_weight'] = (ib, se)
-    param_dict['target_embed_weight'] = (ob, se)
-    param_dict['target_output_bias'] = (ob,)
-    param_dict['target_output_weight'] = (ob, h)
+    param_dict['source_embed_weight'] = (sb, se)
+    param_dict['target_embed_weight'] = (tb, se)
+    param_dict['target_output_bias'] = (tb,)
+    param_dict['target_output_weight'] = (tb, h)
 
     return param_dict
 
-def get_num_params(cell, ib, ob, sn, tn, se, te, h):
-    io_nparam = ib*se + ob*(1+te+h)
+def get_num_params(cell, sb, tb, sn, tn, se, te, h):
+    io_nparam = sb*se + tb*(1+te+h)
     if cell == 'lstm':
         nparam = h*(-4*h + 8*se + (8*sn+10*tn)*(1+h) + 1) + io_nparam
     else:
@@ -146,17 +195,19 @@ def get_num_params(cell, ib, ob, sn, tn, se, te, h):
 def main():
     args = get_args()
     cell = args.rnn_cell_type
-    sb = args.bpe_symbols_src
-    tb = args.bpe_symbols_trg
     sn, tn = args.num_layers
     se, te = args.num_embed
     h = args.rnn_num_hidden
 
-    ib = sb
-    ob = tb
+    if args.exact:
+        sb = get_num_vocab(args.train_bpe_src)
+        tb = get_num_vocab(args.train_bpe_trg)
+    else:
+        sb = args.bpe_symbols_src
+        tb = args.bpe_symbols_trg
 
-    param_dict = get_model_params(cell, ib, ob, sn, tn, se, te, h)
-    nparam = get_num_params(cell, ib, ob, sn, tn, se, te, h)
+    param_dict = get_model_params(cell, sb, tb, sn, tn, se, te, h)
+    nparam = get_num_params(cell, sb, tb, sn, tn, se, te, h)
 
     info = []
     for name, shape in sorted(param_dict.items()):
