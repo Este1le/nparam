@@ -4,6 +4,7 @@ Calculate the number of model parameters for Transformer models.
 """
 import argparse
 import os
+from collections import OrderedDict
 
 def multiple_values(num_values,
                     greater_or_equal,
@@ -122,6 +123,7 @@ def get_num_vocab(fname):
     return len(set(tokens))+4
 
 def get_model_params(sb, tb, sn, tn, e, f):
+    group_dict = OrderedDict() # {name of parameter groups: number of parameters in the group}
     param_dict = {} # {name of parameters: shape of param matrix}
 
     # decoder_att
@@ -137,6 +139,8 @@ def get_model_params(sb, tb, sn, tn, e, f):
         param_dict['decoder_transformer_{0}_att_self_pre_norm_beta'.format(i)] = (e,)
         param_dict['decoder_transformer_{0}_att_self_pre_norm_gamma'.format(i)] = (e, )
 
+    group_dict['decoder_att'] = tn*4*e*(2*e+1)
+
     # decoder_ff
     for i in range(tn):
         param_dict['decoder_transformer_{0}_ff_h2o_bias'.format(i)] = (e,) 
@@ -146,9 +150,13 @@ def get_model_params(sb, tb, sn, tn, e, f):
         param_dict['decoder_transformer_{0}_ff_pre_norm_beta'.format(i)] = (e,) 
         param_dict['decoder_transformer_{0}_ff_pre_norm_gamma'.format(i)] = (e,)
 
+    group_dict['decoder_ff'] = tn*(2*e*f+3*e+f)
+
     # decoder_final
     param_dict['decoder_transformer_final_process_norm_beta'] = (e,)
     param_dict['decoder_transformer_final_process_norm_gamma'] = (e,)
+
+    group_dict['decoder_final'] = 2*e
 
     # encoder_att
     for i in range(sn):
@@ -156,6 +164,8 @@ def get_model_params(sb, tb, sn, tn, e, f):
         param_dict['encoder_transformer_{0}_att_self_i2h_weight'.format(i)] = (3*e, e) 
         param_dict['encoder_transformer_{0}_att_self_pre_norm_beta'.format(i)] = (e,) 
         param_dict['encoder_transformer_{0}_att_self_pre_norm_gamma'.format(i)] = (e,)
+
+    group_dict['ecoder_att'] = sn*2*e*(2*e+1)
 
     # encoder_ff
     for i in range(sn):
@@ -166,9 +176,13 @@ def get_model_params(sb, tb, sn, tn, e, f):
         param_dict['encoder_transformer_{0}_ff_pre_norm_beta'.format(i)] = (e,) 
         param_dict['encoder_transformer_{0}_ff_pre_norm_gamma'.format(i)] = (e,)
 
+    group_dict['encoder_ff'] = sn*(2*e*f+3*e+f)
+
     # encoder_final
     param_dict['encoder_transformer_final_process_norm_beta'] = (e,)
     param_dict['encoder_transformer_final_process_norm_gamma'] = (e,)
+
+    group_dict['encoder_final'] = 2*e
 
     # io
     param_dict['source_embed_weight'] = (sb, e)
@@ -176,7 +190,9 @@ def get_model_params(sb, tb, sn, tn, e, f):
     param_dict['target_output_bias'] = (tb,)
     param_dict['target_output_weight'] = (tb, e)
 
-    return param_dict
+    group_dict['io'] = sb*e+tb*(2*e+1)
+
+    return group_dict, param_dict
 
 def get_num_params(sb, tb, sn, tn, e, f):
     io_nparam = sb*e + tb*(2*e+1)
@@ -198,7 +214,7 @@ def main():
         sb = args.bpe_symbols_src
         tb = args.bpe_symbols_trg
 
-    param_dict = get_model_params(sb, tb, sn, tn, e, f)
+    group_dict, param_dict = get_model_params(sb, tb, sn, tn, e, f)
     nparam = get_num_params(sb, tb, sn, tn, e, f)
 
     info = []
@@ -206,8 +222,10 @@ def main():
         info.append("{0}: {1}".format(name, shape))
 
     print("***Transformer model***\n")
-    print("Model parameters: {0}\n".format(",".join(info)))
-    print("Total # of parameters: {0}\n".format(nparam))
+    print("Model parameters: {0}\n\n".format(",".join(info)))
+    for group, num in group_dict.items():
+        print("# of {0} parameters: {1}".format(group, num))
+    print("\nTotal # of parameters: {0}\n".format(nparam))
 
 if __name__ == '__main__':
     main()

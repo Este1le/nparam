@@ -4,6 +4,7 @@ Calculate the number of model parameters for RNN models.
 """
 import argparse
 import os
+from collections import OrderedDict
 
 def multiple_values(num_values,
                     greater_or_equal,
@@ -120,26 +121,34 @@ def get_num_vocab(fname):
     return len(set(tokens))+4
 
 def get_model_params(cell, sb, tb, sn, tn, se, te, h):
+    group_dict = OrderedDict() # {name of parameter groups: number of parameters in the group}
     param_dict = {} # {name of parameters: shape of param matrix}
 
     # enc2decinit parameters
     if cell == 'lstm':
         x = 2*tn
+        group_dict["enc2decinit"] = 2*tn*h*(h+1)
     else:
         x = tn
+        group_dict["enc2decinit"] = tn*h*(h+1)
     for i in range(x):
         param_dict['decoder_rnn_enc2decinit_{0}_bias'.format(i)] = (h,)
         param_dict['decoder_rnn_enc2decinit_{0}_weight'.format(i)] = (h,h)
+
 
     # hidden
     param_dict['decoder_rnn_hidden_bias'] = (h,)
     param_dict['decoder_rnn_hidden_weight'] = (h, 2*h)
 
+    group_dict["hidden"] = h*(2*h+1)
+
     # decoder_lx
     if cell == 'lstm':
         y = 4*h
+        group_dict["decoder_lx"] = 4*h*(se+2*tn*(h+1))
     else:
         y = 3*h
+        group_dict["decoder_lx"] = 3*h*(se+2*tn*(h+1))
     for i in range(tn):
         if i == 0:
             z = h+se
@@ -153,8 +162,10 @@ def get_model_params(cell, sb, tb, sn, tn, se, te, h):
     # birnn
     if cell == 'lstm':
         y = 2*h
+        group_dict["birnn"] = 2*h*(4+h+2*se)
     else:
         y = int(1.5 * h)
+        group_dict["birnn"] = int(1.5*h*(4+h+2*se))
     param_dict['encoder_birnn_forward_l0_h2h_bias'] = (y,)
     param_dict['encoder_birnn_forward_l0_h2h_weight'] = (y, h/2)
     param_dict['encoder_birnn_forward_l0_i2h_bias'] = (y,)
@@ -168,8 +179,10 @@ def get_model_params(cell, sb, tb, sn, tn, se, te, h):
     if sn > 1:
         if cell == 'lstm':
             y = 4*h
+            group_dict["encoder_lx"] = 4*h*(sn-1)*(2+2*h)
         else:
             y = 3*h
+            group_dict["encoder_lx"] = 3*h*(sn-1)*(2+2*h)
         for i in range(sn-1):
             param_dict['encoder_rnn_l{0}_h2h_bias'.format(i)] = (y,)
             param_dict['encoder_rnn_l{0}_h2h_weight'.format(i)] = (y, h)
@@ -182,7 +195,9 @@ def get_model_params(cell, sb, tb, sn, tn, se, te, h):
     param_dict['target_output_bias'] = (tb,)
     param_dict['target_output_weight'] = (tb, h)
 
-    return param_dict
+    group_dict["io"] = sb*se+tb*(1+te+h)
+
+    return group_dict, param_dict
 
 def get_num_params(cell, sb, tb, sn, tn, se, te, h):
     io_nparam = sb*se + tb*(1+te+h)
@@ -206,7 +221,7 @@ def main():
         sb = args.bpe_symbols_src
         tb = args.bpe_symbols_trg
 
-    param_dict = get_model_params(cell, sb, tb, sn, tn, se, te, h)
+    group_dict, param_dict = get_model_params(cell, sb, tb, sn, tn, se, te, h)
     nparam = get_num_params(cell, sb, tb, sn, tn, se, te, h)
 
     info = []
@@ -214,8 +229,10 @@ def main():
         info.append("{0}: {1}".format(name, shape))
 
     print("***RNN model***\n")
-    print("Model parameters: {0}\n".format(",".join(info)))
-    print("Total # of parameters: {0}\n".format(nparam))
+    print("Model parameters: {0}\n\n".format(",".join(info)))
+    for group, num in group_dict.items():
+        print("# of {0} parameters: {1}".format(group, num))
+    print("\nTotal # of parameters: {0}\n".format(nparam))
 
 if __name__ == '__main__':
     main()

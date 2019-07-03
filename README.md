@@ -11,7 +11,7 @@ sh get_nparam.sh -p model.hpm
 ```
 `rnn.hpm` is an example for the RNN hyper-parameter file, and `transformer.hpm` is an example for the Transformer hyperparameter file.
 
-With the hyper-parameter settings specified, this script will print the name of parameters with the shapes, and the total number of model parameters.
+With the hyper-parameter settings specified, this script will print the name of parameters with the shapes, the number of parameters in subnetworks and the total number of model parameters.
 
 Notice that `--bpe-symbols-src` and `--bpe-symbols-trg` in `get_nparam.sh` may not equal to the real vocab size used in the training. If you want the real total number of model parameters, you can specify the `--exact` flag, and path to the BPE'ed training data (e.g. `./data-bpe/train.bpe-30000.de`, `./data-bpe/train.bpe-30000.en`) should also be specified (`--train-bpe-src`, `--train-bpe-trg`). Otherwise, without the `--exact` flag, an approximation of the number of parameters will be calculated based on `--bpe-symbols-src` and `--bpe-symbols-trg`.
 
