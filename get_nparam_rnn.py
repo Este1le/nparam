@@ -70,9 +70,9 @@ def regular_file():
 
 def get_args():
     parser = argparse.ArgumentParser(description='The hyperparameter settings.')
-    parser.add_argument('--bpe-symbols-src', type=int_greater_or_equal(1), required=False,
+    parser.add_argument('--bpe-symbols-src', type=int_greater_or_equal(1), required=True,
                         help='The number of bpe operations for source side.')
-    parser.add_argument('--bpe-symbols-trg', type=int_greater_or_equal(1), required=False,
+    parser.add_argument('--bpe-symbols-trg', type=int_greater_or_equal(1), required=True,
                         help='The number of bpe operations for target side.')
     parser.add_argument('--train-bpe-src', type=regular_file(), required=False,
                         help='Source side of parallel training data.')
@@ -99,11 +99,6 @@ def get_args():
             parser.error('--train-bpe-src is required for exact calculation.')
         if ('train_bpe_trg' not in vars(args)):
             parser.error('--train-bpe-trg is required for exact calculation.')
-    else:
-        if ('bpe_symbols_src' not in vars(args)):
-            parser.error('--bpe-symbols-src is required for approximate calculation.')
-        if ('bpe_symbols_trg' not in vars(args)):
-            parser.error('--bpe-symbols-trg is required for approximate calculation.')
 
     return args
 
@@ -216,7 +211,11 @@ def main():
 
     if args.exact:
         sb = get_num_vocab(args.train_bpe_src)
+        if sb > args.bpe_symbols_src:
+            sb = args.bpe_symbols_src + 4
         tb = get_num_vocab(args.train_bpe_trg)
+        if tb > args.bpe_symbols_trg:
+            tb = args.bpe_symbols_trg + 4
     else:
         sb = args.bpe_symbols_src
         tb = args.bpe_symbols_trg
