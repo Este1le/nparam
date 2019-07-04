@@ -183,6 +183,8 @@ def get_model_params(cell, sb, tb, sn, tn, se, te, h):
             param_dict['encoder_rnn_l{0}_h2h_weight'.format(i)] = (y, h)
             param_dict['encoder_rnn_l{0}_i2h_bias'.format(i)] = (y,)
             param_dict['encoder_rnn_l{0}_i2h_weight'.format(i)] = (y, h)
+    else:
+        group_dict["encoder_lx"] = 0
 
     # io
     param_dict['source_embed_weight'] = (sb, se)
